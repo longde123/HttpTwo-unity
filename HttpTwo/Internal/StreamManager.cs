@@ -1,16 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace HttpTwo.Internal
 {
+    public delegate void StreamGetCallback(Http2Stream stream);
     public interface IStreamManager
     {
         uint GetNextIdentifier ();
-        Task<Http2Stream> Get (uint streamIdentifier);
-        Task<Http2Stream> Get ();
-        Task Cleanup (uint streamIdentifier);
+        void Get(uint streamIdentifier, StreamGetCallback cb);
+        void Get(StreamGetCallback cb);
+        Http2Stream Get();
+        Http2Stream Get(uint streamIdentifier);
+        void Cleanup (uint streamIdentifier);
     }
 
     public class StreamManager : IStreamManager
@@ -48,42 +50,67 @@ namespace HttpTwo.Internal
 
         Dictionary<uint, Http2Stream> streams;
 
-        readonly SemaphoreSlim lockStreams = new SemaphoreSlim (1);
+        readonly Semaphore lockStreams = new Semaphore(1, 100);
 
-        public async Task<Http2Stream> Get (uint streamIdentifier)
+        public Http2Stream Get(uint streamIdentifier)
         {
-            await lockStreams.WaitAsync ().ConfigureAwait (false);
+            return GetWithIdentifier(streamIdentifier, null);
+        }
+
+        public void Get(uint streamIdentifier, StreamGetCallback cb)
+        {
+            new Thread(() => GetWithIdentifier(streamIdentifier, cb)).Start();
+        }
+
+        private Http2Stream GetWithIdentifier(uint streamIdentifier, StreamGetCallback cb)
+        {
+            lockStreams.WaitOne();
 
             Http2Stream stream = null;
 
-            if (!streams.ContainsKey (streamIdentifier)) {
-                stream = new Http2Stream (flowControlManager, streamIdentifier);
-                streams.Add (streamIdentifier, stream);
-            } else {
-                stream = streams [streamIdentifier];
+            if (!streams.ContainsKey(streamIdentifier))
+            {
+                stream = new Http2Stream(flowControlManager, streamIdentifier);
+                streams.Add(streamIdentifier, stream);
+            }
+            else
+            {
+                stream = streams[streamIdentifier];
             }
 
-            lockStreams.Release ();
+            lockStreams.Release();
 
+            cb?.Invoke(stream);
             return stream;
         }
 
-        public async Task<Http2Stream> Get ()
+        public Http2Stream Get()
         {
-            await lockStreams.WaitAsync ().ConfigureAwait (false);
+            return GetImpl(null);
+        }
 
-            var stream = new Http2Stream (flowControlManager, GetNextIdentifier ());
+        public void Get(StreamGetCallback cb)
+        {
+            new Thread(() => GetImpl(cb)).Start();
+        }
 
-            streams.Add (stream.StreamIdentifer, stream);
+        private Http2Stream GetImpl(StreamGetCallback cb)
+        {
+            lockStreams.WaitOne();
 
-            lockStreams.Release ();
+            var stream = new Http2Stream(flowControlManager, GetNextIdentifier());
 
+            streams.Add(stream.StreamIdentifer, stream);
+
+            lockStreams.Release();
+
+            cb?.Invoke(stream);
             return stream;
         }
 
-        public async Task Cleanup (uint streamIdentifier)
+        public void Cleanup (uint streamIdentifier)
         {
-            await lockStreams.WaitAsync ().ConfigureAwait (false);
+            lockStreams.WaitOne();
 
             if (streams.ContainsKey (streamIdentifier))
                 streams.Remove (streamIdentifier);

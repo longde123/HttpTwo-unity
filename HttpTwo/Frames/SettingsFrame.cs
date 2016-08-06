@@ -37,28 +37,28 @@ namespace HttpTwo
                 }
 
                 if (EnablePush.HasValue) {
-                    data.AddRange (BitConverter.GetBytes ((ushort)0x2).EnsureBigEndian ());
-                    data.AddRange (BitConverter.GetBytes (EnablePush.Value ? (uint)1 : (uint)0).EnsureBigEndian ());
+                    data.AddRange (ByteArrayExtensions.EnsureBigEndian(BitConverter.GetBytes ((ushort)0x2)));
+                    data.AddRange (ByteArrayExtensions.EnsureBigEndian(BitConverter.GetBytes (EnablePush.Value ? (uint)1 : (uint)0)));
                 }
 
                 if (MaxConcurrentStreams.HasValue) {
-                    data.AddRange (BitConverter.GetBytes ((ushort)0x3).EnsureBigEndian ());
-                    data.AddRange (BitConverter.GetBytes (MaxConcurrentStreams.Value).EnsureBigEndian ());
+                    data.AddRange (ByteArrayExtensions.EnsureBigEndian(BitConverter.GetBytes ((ushort)0x3)));
+                    data.AddRange (ByteArrayExtensions.EnsureBigEndian(BitConverter.GetBytes (MaxConcurrentStreams.Value)));
                 }
 
                 if (InitialWindowSize.HasValue) {
-                    data.AddRange (BitConverter.GetBytes ((ushort)0x4).EnsureBigEndian ());
-                    data.AddRange (BitConverter.GetBytes (InitialWindowSize.Value).EnsureBigEndian ());
+                    data.AddRange (ByteArrayExtensions.EnsureBigEndian(BitConverter.GetBytes ((ushort)0x4)));
+                    data.AddRange (ByteArrayExtensions.EnsureBigEndian(BitConverter.GetBytes (InitialWindowSize.Value)));
                 }
 
                 if (MaxFrameSize.HasValue) {
-                    data.AddRange (BitConverter.GetBytes ((ushort)0x5).EnsureBigEndian ());
+                    data.AddRange (ByteArrayExtensions.EnsureBigEndian(BitConverter.GetBytes ((ushort)0x5)));
                     data.AddRange (BitConverter.GetBytes (MaxFrameSize.Value));
                 }
 
                 if (MaxHeaderListSize.HasValue) {
-                    data.AddRange (BitConverter.GetBytes ((ushort)0x6).EnsureBigEndian ());
-                    data.AddRange (BitConverter.GetBytes (MaxHeaderListSize.Value).EnsureBigEndian ());
+                    data.AddRange (ByteArrayExtensions.EnsureBigEndian(BitConverter.GetBytes ((ushort)0x6)));
+                    data.AddRange (ByteArrayExtensions.EnsureBigEndian(BitConverter.GetBytes (MaxHeaderListSize.Value)));
                 }
 
                 return data;

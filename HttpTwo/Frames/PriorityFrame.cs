@@ -43,7 +43,7 @@ namespace HttpTwo
                 var data = new List<byte> ();
 
                 // 1 Bit reserved as unset (0) so let's take the first bit of the next 32 bits and unset it
-                data.AddRange (Util.ConvertToUInt31 (StreamDependency).EnsureBigEndian ());
+                data.AddRange (ByteArrayExtensions.EnsureBigEndian(Util.ConvertToUInt31 (StreamDependency)));
                 data.Add ((byte)Weight);
 
                 return data.ToArray ();
@@ -56,7 +56,7 @@ namespace HttpTwo
             // we need to turn the stream id into a uint
             var frameStreamIdData = new byte[4]; 
             Array.Copy (payloadData, 0, frameStreamIdData, 0, 4);
-            StreamDependency = Util.ConvertFromUInt31 (frameStreamIdData.EnsureBigEndian ());
+            StreamDependency = Util.ConvertFromUInt31 (ByteArrayExtensions.EnsureBigEndian(frameStreamIdData));
 
             // Get the weight
             weight = (ushort)payloadData [4];

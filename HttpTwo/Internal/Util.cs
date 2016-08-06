@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Specialized;
 using System.IO;
-using System.Threading.Tasks;
 
 namespace HttpTwo.Internal
 {
@@ -82,22 +81,14 @@ namespace HttpTwo.Internal
         }
     }
 
-    static class ByteArrayExtensions
+    internal static class ByteArrayExtensions
     {
-        public static byte[] EnsureBigEndian (this byte[] src)
+        public static byte[] EnsureBigEndian (byte[] src)
         {
             if (BitConverter.IsLittleEndian)
                 Array.Reverse (src);
 
             return src;
-        }
-    }
-
-    static class TaskExceptions
-    {
-        public static void Forget (this Task task)
-        {
-            //var a = task.ConfigureAwait(false);
         }
     }
 }

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Linq;
 
 namespace HttpTwo.Internal
@@ -31,16 +30,14 @@ namespace HttpTwo.Internal
         IFlowControlManager flowControlManager;
 
         // Lock for reading/writing from list
-        SemaphoreSlim semaphoreFrames = new SemaphoreSlim (1);
+        Semaphore semaphoreFrames = new Semaphore(1, 1);
 
         // Reset event to help block Dequeueing until items are available
-        ManualResetEventSlim waitAny = new ManualResetEventSlim (false);
+        ManualResetEvent waitAny = new ManualResetEvent(false);
 
-        CancellationTokenSource cancelTokenSource = new CancellationTokenSource ();
-
-        public async Task Enqueue (IFrame frame)
+        public void Enqueue (IFrame frame)
         {
-            await semaphoreFrames.WaitAsync ().ConfigureAwait (false);
+            semaphoreFrames.WaitOne();
 
             try {
                 var priority = GetPriority (frame.Type);
@@ -55,24 +52,27 @@ namespace HttpTwo.Internal
             }
         }
 
+        bool cancelled = false;
+
         public IEnumerable<IFrame> GetConsumingEnumerable ()
         {
             IFrame result = null;
+            cancelled = false;
 
             // Loop until we get a result, unless cancelled
-            while (!cancelTokenSource.IsCancellationRequested) {
+            while (!cancelled) {
 
                 // Wait for a signal that there's a frame
-                waitAny.Wait (cancelTokenSource.Token);
+                waitAny.WaitOne();
 
                 // attempt to dequeue a frame
                 // this could be null if our queue is paused
-                result = dequeue ();
+                result = dequeue();
 
                 // If null, queue was paused, so let's keep waiting
                 // reset our handle and loop again
                 if (result == null)
-                    waitAny.Reset ();
+                    waitAny.Reset();
                 else
                     yield return result;
             }
@@ -80,14 +80,14 @@ namespace HttpTwo.Internal
 
         public void Complete ()
         {
-            cancelTokenSource.Cancel ();
+            cancelled = true;
         }
 
         IFrame dequeue ()
         {
             IFrame result = null;
 
-            semaphoreFrames.Wait ();
+            semaphoreFrames.WaitOne();
 
             foreach (var priority in PRIORITIES) {
                 var frames = frameQueues [priority];

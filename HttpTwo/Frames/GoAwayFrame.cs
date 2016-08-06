@@ -19,9 +19,9 @@ namespace HttpTwo
                 var data = new List<byte> ();
 
                 // 1 Bit reserved as unset (0) so let's take the first bit of the next 32 bits and unset it
-                data.AddRange (Util.ConvertToUInt31 (LastStreamId).EnsureBigEndian ());
+                data.AddRange (ByteArrayExtensions.EnsureBigEndian(Util.ConvertToUInt31 (LastStreamId)));
 
-                data.AddRange (BitConverter.GetBytes (ErrorCode).EnsureBigEndian ());
+                data.AddRange (ByteArrayExtensions.EnsureBigEndian(BitConverter.GetBytes (ErrorCode)));
 
                 if (AdditionalDebugData != null && AdditionalDebugData.Length > 0)
                     data.AddRange (AdditionalDebugData);
@@ -35,11 +35,11 @@ namespace HttpTwo
             // we need to turn the stream id into a uint
             var frameStreamIdData = new byte[4]; 
             Array.Copy (payloadData, 0, frameStreamIdData, 0, 4);
-            LastStreamId = Util.ConvertFromUInt31 (frameStreamIdData.EnsureBigEndian ());
+            LastStreamId = Util.ConvertFromUInt31 (ByteArrayExtensions.EnsureBigEndian(frameStreamIdData));
 
             var errorCodeData = new byte[4];
             Array.Copy (payloadData, 4, errorCodeData, 0, 4);
-            uint errorCode = BitConverter.ToUInt32 (errorCodeData.EnsureBigEndian (), 0);
+            uint errorCode = BitConverter.ToUInt32 (ByteArrayExtensions.EnsureBigEndian(errorCodeData), 0);
             ErrorCode = errorCode;
 
             if (payloadData.Length > 8)

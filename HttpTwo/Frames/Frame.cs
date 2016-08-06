@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.IO;
+using System.Linq;
 using HttpTwo.Internal;
 
 namespace HttpTwo
@@ -109,7 +109,7 @@ namespace HttpTwo
 
             // Copy Frame Length
             var frameLength = To24BitInt (Length);
-            data.AddRange (frameLength.EnsureBigEndian ());
+            data.AddRange (ByteArrayExtensions.EnsureBigEndian(frameLength));
 
             // Copy Type
             data.Add ((byte)Type);
@@ -119,7 +119,7 @@ namespace HttpTwo
 
             // 1 Bit reserved as unset (0) so let's take the first bit of the next 32 bits and unset it
             var streamId = Util.ConvertToUInt31 (StreamIdentifier);
-            data.AddRange (streamId.EnsureBigEndian ());
+            data.AddRange (ByteArrayExtensions.EnsureBigEndian(streamId));
 
             var payloadData = Payload.ToArray ();
             // Now the payload
@@ -141,7 +141,7 @@ namespace HttpTwo
             flen [2] = data [1];
             flen [3] = data [2];
 
-            var frameLength = BitConverter.ToUInt32 (flen.EnsureBigEndian (), 0);
+            var frameLength = BitConverter.ToUInt32 (ByteArrayExtensions.EnsureBigEndian(flen), 0);
 
             // If we are expecting a payload that's bigger than what's in our buffer
             // we should keep reading from the stream 
@@ -154,7 +154,7 @@ namespace HttpTwo
             // we need to turn the stream id into a uint
             var frameStreamIdData = new byte[4]; 
             Array.Copy (data, 5, frameStreamIdData, 0, 4);
-            this.StreamIdentifier = Util.ConvertFromUInt31 (frameStreamIdData.EnsureBigEndian ());
+            this.StreamIdentifier = Util.ConvertFromUInt31 (ByteArrayExtensions.EnsureBigEndian(frameStreamIdData));
 
             //this.Type = frameType;
             this.Flags = frameFlags;

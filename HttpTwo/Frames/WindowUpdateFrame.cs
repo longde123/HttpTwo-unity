@@ -17,7 +17,7 @@ namespace HttpTwo
                 var data = new List<byte> ();
 
                 // 1 Bit reserved as unset (0) so let's take the first bit of the next 32 bits and unset it
-                data.AddRange (Util.ConvertToUInt31 (WindowSizeIncrement).EnsureBigEndian ());
+                data.AddRange (ByteArrayExtensions.EnsureBigEndian(Util.ConvertToUInt31 (WindowSizeIncrement)));
 
                 return data;
             }
@@ -28,7 +28,7 @@ namespace HttpTwo
             // we need to turn the stream id into a uint
             var windowSizeIncrData = new byte[4]; 
             Array.Copy (payloadData, 0, windowSizeIncrData, 0, 4);
-            WindowSizeIncrement = Util.ConvertFromUInt31 (windowSizeIncrData.EnsureBigEndian ());
+            WindowSizeIncrement = Util.ConvertFromUInt31 (ByteArrayExtensions.EnsureBigEndian(windowSizeIncrData));
         }
 
         public override string ToString ()

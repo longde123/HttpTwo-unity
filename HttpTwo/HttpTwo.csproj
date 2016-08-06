@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -7,14 +7,15 @@
     <OutputType>Library</OutputType>
     <RootNamespace>HttpTwo</RootNamespace>
     <AssemblyName>HttpTwo</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug</OutputPath>
-    <DefineConstants>DEBUG;</DefineConstants>
+    <DefineConstants>DEBUG;UNITY</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <ConsolePause>false</ConsolePause>
@@ -29,7 +30,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
-    <Reference Include="System.Net.Http" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -41,7 +41,6 @@
     <Compile Include="Frames\PingFrame.cs" />
     <Compile Include="Http2Connection.cs" />
     <Compile Include="Http2Client.cs" />
-    <Compile Include="Http2MessageHandler.cs" />
     <Compile Include="Frames\RstStreamFrame.cs" />
     <Compile Include="Frames\WindowUpdateFrame.cs" />
     <Compile Include="Frames\ContinuationFrame.cs" />
@@ -56,10 +55,7 @@
     <Compile Include="Internal\Util.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
-  <ItemGroup>
-    <Folder Include="Frames\" />
-    <Folder Include="Internal\" />
-  </ItemGroup>
+  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="..\HttpTwo.HPack\HttpTwo.HPack.csproj">
       <Project>{C75A83BB-7EF1-4CDB-8C52-9E6E3E11341D}</Project>

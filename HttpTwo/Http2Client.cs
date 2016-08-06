@@ -2,13 +2,11 @@
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
-using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
-using System.Threading.Tasks;
 using HttpTwo.Internal;
+using System.Linq;
 
 namespace HttpTwo
 {
@@ -42,69 +40,75 @@ namespace HttpTwo
         public IStreamManager StreamManager { get { return streamManager; } }
         public IFlowControlManager FlowControlManager { get { return flowControlManager; } }
 
-        public async Task Connect ()
+        public enum HttpMethod
         {
-            await connection.Connect ().ConfigureAwait (false);
+            Post,
+            Get,
+            Delete,
+            Head,
+            Options,
+            Put,
+            Trace
         }
 
-        public async Task<Http2Response> Post (Uri uri, NameValueCollection headers = null, byte[] data = null)
+        public void Connect()
         {
-            return await Send (uri, HttpMethod.Post, headers, data).ConfigureAwait (false);
+            connection.Connect();
         }
 
-        public async Task<Http2Response> Post (Uri uri, NameValueCollection headers = null, Stream data = null)
+        public Http2Response Post(Uri uri, NameValueCollection headers = null, byte[] data = null)
         {
-            return await Send (uri, HttpMethod.Post, headers, data).ConfigureAwait (false);
+            return Send(uri, HttpMethod.Post, headers, data);
         }
 
-        public async Task<Http2Response> Send (Uri uri, HttpMethod method, NameValueCollection headers = null, byte[] data = null)
+        public Http2Response Post(Uri uri, NameValueCollection headers = null, Stream data = null)
+        {
+            return Send (uri, HttpMethod.Post, headers, data);
+        }
+
+        public Http2Response Send(Uri uri, HttpMethod method, NameValueCollection headers = null, byte[] data = null)
         {
             MemoryStream ms = null;
 
             if (data != null)
                 ms = new MemoryStream (data);
             
-            return await Send (new CancellationToken (), uri, method, headers, ms).ConfigureAwait (false);
+            return Send (uri, method, headers, ms);
         }
 
-        public async Task<Http2Response> Send (Uri uri, HttpMethod method, NameValueCollection headers = null, Stream data = null)
+        public Http2Response Send (Uri uri, HttpMethod method, NameValueCollection headers = null, Stream data = null)
         {
-            return await Send (new CancellationToken (), uri, method, headers, data).ConfigureAwait (false);
-        }
+            var semaphoreClose = new Semaphore(0, 100);
 
-        public async Task<Http2Response> Send (CancellationToken cancelToken, Uri uri, HttpMethod method, NameValueCollection headers = null, Stream data = null)
-        {
-            var semaphoreClose = new SemaphoreSlim(0);
-
-            await connection.Connect ().ConfigureAwait (false);
-
-            var stream = await streamManager.Get ().ConfigureAwait (false);
-            stream.OnFrameReceived += async (frame) =>
+            connection.Connect();
+            var stream = streamManager.Get();
+            stream.OnFrameReceived += (frame) =>
             {
                 // Check for an end of stream state
                 if (stream.State == StreamState.HalfClosedRemote || stream.State == StreamState.Closed)
-                    semaphoreClose.Release ();
+                    semaphoreClose.Release();
             };
 
             var sentEndOfStream = false;
 
-            var allHeaders = new NameValueCollection ();
-            allHeaders.Add (":method", method.Method.ToUpperInvariant ());
-            allHeaders.Add (":path", uri.PathAndQuery);
-            allHeaders.Add (":scheme", uri.Scheme);
-            allHeaders.Add (":authority", uri.Authority);
+            var allHeaders = new NameValueCollection();
+            allHeaders.Add(":method", method.ToString().ToUpperInvariant());
+            allHeaders.Add(":path", uri.PathAndQuery);
+            allHeaders.Add(":scheme", uri.Scheme);
+            allHeaders.Add(":authority", uri.Authority);
             if (headers != null && headers.Count > 0)
-                allHeaders.Add (headers);
+                allHeaders.Add(headers);
 
-            var headerData = Util.PackHeaders (allHeaders, connection.Settings.HeaderTableSize);
+            var headerData = Util.PackHeaders(allHeaders, connection.Settings.HeaderTableSize);
 
-            var numFrames = (int)Math.Ceiling ((double)headerData.Length / (double)connection.Settings.MaxFrameSize);
+            var numFrames = (int)Math.Ceiling((double)headerData.Length / (double)connection.Settings.MaxFrameSize);
 
-            for (int i = 0; i < numFrames; i++) {
+            for (int i = 0; i < numFrames; i++)
+            {
                 // First item is headers frame, others are continuation
-                IFrameContainsHeaders frame = (i == 0) ? 
-                    (IFrameContainsHeaders)new HeadersFrame (stream.StreamIdentifer) 
-                    : (IFrameContainsHeaders)new ContinuationFrame (stream.StreamIdentifer);
+                IFrameContainsHeaders frame = (i == 0) ?
+                    (IFrameContainsHeaders)new HeadersFrame(stream.StreamIdentifer)
+                    : (IFrameContainsHeaders)new ContinuationFrame(stream.StreamIdentifer);
 
                 // Set end flag if this is the last item
                 if (i == numFrames - 1)
@@ -113,130 +117,152 @@ namespace HttpTwo
                 var maxFrameSize = connection.Settings.MaxFrameSize;
 
                 var amt = maxFrameSize;
-                if ( i * maxFrameSize + amt > headerData.Length)
+                if (i * maxFrameSize + amt > headerData.Length)
                     amt = (uint)headerData.Length - (uint)(i * maxFrameSize);
                 frame.HeaderBlockFragment = new byte[amt];
-                Array.Copy (headerData, i * maxFrameSize, frame.HeaderBlockFragment, 0, amt);
+                Array.Copy(headerData, i * maxFrameSize, frame.HeaderBlockFragment, 0, amt);
 
                 // If we won't s end 
-                if (data == null && frame is HeadersFrame) {
+                if (data == null && frame is HeadersFrame)
+                {
                     sentEndOfStream = true;
                     (frame as HeadersFrame).EndStream = true;
                 }
 
-                await connection.QueueFrame (frame).ConfigureAwait (false);
+                connection.QueueFrame(frame);
             }
-            
-            if (data != null) {
+
+            if (data != null)
+            {
                 var supportsPosLength = true; // Keep track of if we threw exceptions trying pos/len of stream
 
                 // Break stream up into data frames within allowed size
                 var dataFrameBuffer = new byte[connection.Settings.MaxFrameSize];
-                while (true) {
+                while (true)
+                {
 
-                    var rd = await data.ReadAsync (dataFrameBuffer, 0, dataFrameBuffer.Length).ConfigureAwait (false);
+                    var rd = data.Read(dataFrameBuffer, 0, dataFrameBuffer.Length);
 
                     if (rd <= 0)
                         break;
 
                     // Make a new data frame with a buffer the size we read
-                    var dataFrame = new DataFrame (stream.StreamIdentifer);
+                    var dataFrame = new DataFrame(stream.StreamIdentifer);
                     dataFrame.Data = new byte[rd];
                     // Copy over the data we read
                     Array.Copy(dataFrameBuffer, 0, dataFrame.Data, 0, rd);
-                    
-                    try {
+
+                    try
+                    {
                         // See if the stream supports Length / Position to try and detect EOS
                         // we also want to see if we previously had an exception trying this
                         // and not try again if we did, since throwing exceptions every single
                         // read operation is wasteful
-                        if (supportsPosLength && data.Position >= data.Length) {
+                        if (supportsPosLength && data.Position >= data.Length)
+                        {
                             dataFrame.EndStream = true;
                             sentEndOfStream = true;
                         }
-                    } catch {
+                    }
+                    catch
+                    {
                         supportsPosLength = false;
                         sentEndOfStream = false;
                     }
 
-                    await connection.QueueFrame (dataFrame).ConfigureAwait (false);
-                }   
+                    connection.QueueFrame(dataFrame);
+                }
             }
 
             // Send an empty frame with end of stream flag
             if (!sentEndOfStream)
-                await connection.QueueFrame(new DataFrame(stream.StreamIdentifer) { EndStream = true }).ConfigureAwait(false);
+                connection.QueueFrame(new DataFrame(stream.StreamIdentifer) { EndStream = true });
 
-            if (!await semaphoreClose.WaitAsync (ConnectionSettings.ConnectionTimeout, cancelToken).ConfigureAwait (false))
-                throw new TimeoutException ();
+            if (!semaphoreClose.WaitOne(ConnectionSettings.ConnectionTimeout))
+                throw new TimeoutException();
 
-            var responseData = new List<byte> ();
-            var rxHeaderData = new List<byte> ();
+            var responseData = new List<byte>();
+            var rxHeaderData = new List<byte>();
 
-            foreach (var f in stream.ReceivedFrames) {
-                if (f.Type == FrameType.Headers || f.Type == FrameType.Continuation) {
+            foreach (var f in stream.ReceivedFrames)
+            {
+                if (f.Type == FrameType.Headers || f.Type == FrameType.Continuation)
+                {
                     // Get the header data and add it to our buffer
                     var fch = (IFrameContainsHeaders)f;
                     if (fch.HeaderBlockFragment != null && fch.HeaderBlockFragment.Length > 0)
-                        rxHeaderData.AddRange (fch.HeaderBlockFragment);    
-                } else if (f.Type == FrameType.PushPromise) {
+                        rxHeaderData.AddRange(fch.HeaderBlockFragment);
+                }
+                else if (f.Type == FrameType.PushPromise)
+                {
                     // TODO: In the future we need to implement PushPromise beyond grabbing header data
                     var fch = (IFrameContainsHeaders)f;
                     if (fch.HeaderBlockFragment != null && fch.HeaderBlockFragment.Length > 0)
-                        rxHeaderData.AddRange (fch.HeaderBlockFragment);    
-                } else if (f.Type == FrameType.Data) {
-                    responseData.AddRange ((f as DataFrame).Data);
-                } else if (f.Type == FrameType.GoAway) {
+                        rxHeaderData.AddRange(fch.HeaderBlockFragment);
+                }
+                else if (f.Type == FrameType.Data)
+                {
+                    responseData.AddRange((f as DataFrame).Data);
+                }
+                else if (f.Type == FrameType.GoAway)
+                {
                     var fga = f as GoAwayFrame;
                     if (fga != null && fga.AdditionalDebugData != null && fga.AdditionalDebugData.Length > 0)
-                        responseData.AddRange (fga.AdditionalDebugData);
+                        responseData.AddRange(fga.AdditionalDebugData);
                 }
             }
 
-            var responseHeaders = Util.UnpackHeaders (rxHeaderData.ToArray (), 
-                connection.Settings.MaxHeaderListSize.HasValue ? (int)connection.Settings.MaxHeaderListSize.Value : 8192, 
+            var responseHeaders = Util.UnpackHeaders(rxHeaderData.ToArray(),
+                connection.Settings.MaxHeaderListSize.HasValue ? (int)connection.Settings.MaxHeaderListSize.Value : 8192,
                 (int)connection.Settings.HeaderTableSize);
 
             var strStatus = "500";
-            if (responseHeaders [":status"] != null)
-                strStatus = responseHeaders [":status"];
+            if (responseHeaders[":status"] != null)
+                strStatus = responseHeaders[":status"];
 
             var statusCode = HttpStatusCode.OK;
-            Enum.TryParse<HttpStatusCode> (strStatus, out statusCode);
+            try
+            {
+                statusCode = (HttpStatusCode)Enum.Parse(typeof(HttpStatusCode), strStatus);
+            }
+            catch
+            { }
 
             // Remove the stream from being tracked since we're done with it
-            await streamManager.Cleanup (stream.StreamIdentifer).ConfigureAwait (false);
+            streamManager.Cleanup(stream.StreamIdentifer);
 
             // Send a WINDOW_UPDATE frame to release our stream's data count
             // TODO: Eventually need to do this on the stream itself too (if it's open)
-            await connection.FreeUpWindowSpace ().ConfigureAwait (false);
+            connection.FreeUpWindowSpace();
 
-            return new Http2Response {
+            return new Http2Response
+            {
                 Status = statusCode,
                 Stream = stream,
                 Headers = responseHeaders,
-                Body = responseData.ToArray ()
+                Body = responseData.ToArray()
             };
         }
 
-        public async Task<bool> Ping (byte[] opaqueData, CancellationToken cancelToken)
+        public delegate void BoolCallback(bool result);
+
+        public bool Ping(byte[] opaqueData)
         {
             if (opaqueData == null || opaqueData.Length <= 0)
                 throw new ArgumentNullException ("opaqueData");
             
-            await connection.Connect ().ConfigureAwait (false);
-
-            var semaphoreWait = new SemaphoreSlim (0);
+            connection.Connect();
+            var connectionStream = streamManager.Get(0);
+            var semaphoreWait = new Semaphore(0, 100);
             var opaqueDataMatch = false;
 
-            var connectionStream = await streamManager.Get (0).ConfigureAwait (false);
-
             Http2Stream.FrameReceivedDelegate frameRxAction;
-            frameRxAction = new Http2Stream.FrameReceivedDelegate (frame => {
+            frameRxAction = new Http2Stream.FrameReceivedDelegate(frame => {
                 var pf = frame as PingFrame;
-                if (pf != null) {
-                    opaqueDataMatch = pf.Ack && pf.OpaqueData != null && pf.OpaqueData.SequenceEqual (opaqueData);
-                    semaphoreWait.Release ();
+                if (pf != null)
+                {
+                    opaqueDataMatch = pf.Ack && pf.OpaqueData != null && pf.OpaqueData.SequenceEqual(opaqueData);
+                    semaphoreWait.Release();
                 }
             });
 
@@ -244,15 +270,15 @@ namespace HttpTwo
             connectionStream.OnFrameReceived += frameRxAction;
 
             // Construct ping request
-            var pingFrame = new PingFrame ();
+            var pingFrame = new PingFrame();
             pingFrame.OpaqueData = new byte[opaqueData.Length];
-            opaqueData.CopyTo (pingFrame.OpaqueData, 0);
+            opaqueData.CopyTo(pingFrame.OpaqueData, 0);
 
             // Send ping
-            await connection.QueueFrame (pingFrame).ConfigureAwait (false);
+            connection.QueueFrame(pingFrame);
 
             // Wait for either a ping response or timeout
-            await semaphoreWait.WaitAsync (cancelToken).ConfigureAwait (false);
+            semaphoreWait.WaitOne();
 
             // Cleanup the event
             connectionStream.OnFrameReceived -= frameRxAction;
@@ -260,38 +286,47 @@ namespace HttpTwo
             return opaqueDataMatch;
         }
 
-        public async Task<bool> Disconnect ()
+        public bool Disconnect()
         {
-            return await Disconnect (Timeout.InfiniteTimeSpan).ConfigureAwait (false);
+            return _Disconnect(null);
         }
 
-        public async Task<bool> Disconnect (TimeSpan timeout)
+        private bool Disconnect(TimeSpan timeout)
         {
-            var connectionStream = await streamManager.Get (0).ConfigureAwait (false);
+            return _Disconnect(timeout);
+        }
 
-            var semaphoreWait = new SemaphoreSlim (0);
-            var cancelTokenSource = new CancellationTokenSource ();
+        private bool _Disconnect(TimeSpan? timeout)
+        {
+            var connectionStream = streamManager.Get(0);
+
+            var semaphoreWait = new Semaphore(0, 100);
             var sentGoAway = false;
 
-            var sentDelegate = new Http2Stream.FrameSentDelegate (frame => {
-                if (frame.Type == FrameType.GoAway) {
+            var sentDelegate = new Http2Stream.FrameSentDelegate(frame => {
+                if (frame.Type == FrameType.GoAway)
+                {
                     sentGoAway = true;
-                    semaphoreWait.Release ();
+                    semaphoreWait.Release();
                 }
             });
 
             connectionStream.OnFrameSent += sentDelegate;
 
-            await connection.QueueFrame (new GoAwayFrame ()).ConfigureAwait (false);
+            connection.QueueFrame(new GoAwayFrame());
 
-            if (timeout != Timeout.InfiniteTimeSpan)
-                cancelTokenSource.CancelAfter (timeout);
-
-            await semaphoreWait.WaitAsync (cancelTokenSource.Token).ConfigureAwait (false);
+            if (timeout.HasValue)
+            {
+                semaphoreWait.WaitOne((int)timeout.Value.TotalMilliseconds);
+            }
+            else
+            {
+                semaphoreWait.WaitOne();
+            }
 
             connectionStream.OnFrameSent -= sentDelegate;
 
-            connection.Disconnect ();
+            connection.Disconnect();
 
             return sentGoAway;
         }
