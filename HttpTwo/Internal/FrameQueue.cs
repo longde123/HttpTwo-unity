@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading;
-using System.Linq;
 
 namespace HttpTwo.Internal
 {
@@ -120,8 +118,7 @@ namespace HttpTwo.Internal
                             // we also want to pause the trailing frames, so let's look and see
                             // if the frame has any DATA frames still in the queue before it, from the same stream
                             // if so, skip sending the trailers.
-                            if (frames.Take (frameIndex)
-                                .Any (f => f.StreamIdentifier == frame.StreamIdentifier && f.Type == FrameType.Data))
+                            if (AltLinq.Any(AltLinq.Take(frames, frameIndex), f => f.StreamIdentifier == frame.StreamIdentifier && f.Type == FrameType.Data))
                                 continue;
                         }
 

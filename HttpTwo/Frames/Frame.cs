@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using HttpTwo.Internal;
 
 namespace HttpTwo
@@ -81,7 +80,7 @@ namespace HttpTwo
         public uint PayloadLength {
             get {
                 if (!payloadLength.HasValue)
-                    payloadLength = (uint)Payload.Count ();
+                    payloadLength = (uint)AltLinq.Count(Payload);
 
                 return payloadLength.Value;
             }
@@ -121,7 +120,7 @@ namespace HttpTwo
             var streamId = Util.ConvertToUInt31 (StreamIdentifier);
             data.AddRange (ByteArrayExtensions.EnsureBigEndian(streamId));
 
-            var payloadData = Payload.ToArray ();
+            var payloadData = AltLinq.ToArray(Payload);
             // Now the payload
             data.AddRange (payloadData);
 

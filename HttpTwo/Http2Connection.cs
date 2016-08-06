@@ -6,7 +6,6 @@ using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
-using System.Linq;
 using HttpTwo.Internal;
 
 namespace HttpTwo
@@ -231,9 +230,9 @@ namespace HttpTwo
                     // which is a 24 bit uint, so we need to convert this as c# uint is 32 bit
                     var flen = new byte[4];
                     flen[0] = 0x0;
-                    flen[1] = buffer.ElementAt(0);
-                    flen[2] = buffer.ElementAt(1);
-                    flen[3] = buffer.ElementAt(2);
+                    flen[1] = buffer[0];
+                    flen[2] = buffer[1];
+                    flen[3] = buffer[2];
 
                     var frameLength = BitConverter.ToUInt32(ByteArrayExtensions.EnsureBigEndian(flen), 0);
 
@@ -357,7 +356,7 @@ namespace HttpTwo
 
                 Log.Debug ("-> {0}", frame);
 
-                var data = frame.ToBytes ().ToArray();
+                var data = AltLinq.ToArray(frame.ToBytes());
 
                 lockWrite.WaitOne();
 

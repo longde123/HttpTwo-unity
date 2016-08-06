@@ -6,7 +6,6 @@ using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using HttpTwo.Internal;
-using System.Linq;
 
 namespace HttpTwo
 {
@@ -261,7 +260,7 @@ namespace HttpTwo
                 var pf = frame as PingFrame;
                 if (pf != null)
                 {
-                    opaqueDataMatch = pf.Ack && pf.OpaqueData != null && pf.OpaqueData.SequenceEqual(opaqueData);
+                    opaqueDataMatch = pf.Ack && pf.OpaqueData != null && AltLinq.SequenceEqual(pf.OpaqueData, opaqueData);
                     semaphoreWait.Release();
                 }
             });

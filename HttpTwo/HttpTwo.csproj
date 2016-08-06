@@ -7,7 +7,7 @@
     <OutputType>Library</OutputType>
     <RootNamespace>HttpTwo</RootNamespace>
     <AssemblyName>HttpTwo</AssemblyName>
-    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v2.0</TargetFrameworkVersion>
     <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -32,6 +32,7 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AltLinq.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Frames\Frame.cs" />
     <Compile Include="Frames\SettingsFrame.cs" />
