@@ -1,6 +1,6 @@
 # HttpTwo
 
-A fully managed C# HTTP/2 client library implementation
+A fully managed C# HTTP/2 client library implementation - modified for unity (.net2.0 + linq)
 
 The focus of this library is to bring enough HTTP/2 functionality to .NET for implementing the APNS (Apple Push Notification Service) provider API over HTTP/2 within [PushSharp](https://github.com/redth/pushsharp)
 
